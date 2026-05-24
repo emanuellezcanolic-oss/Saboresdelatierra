@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" conthent="width=device-width, initial-scale=1.0">
   <title>Sabores de la Tierra – Punto de Venta</title>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejsh/9.23.0/firebase-firestore-compat.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -264,8 +264,8 @@
   }
 
   async function loadProductos() {
-    const snap = await db.collection('productos').where('activo', '==', true).orderBy('nombre').get();
-    productos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const snap = await db.collection('productos').where('activo', '==', true).get();
+    productos = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.nombre.localeCompare(b.nombre));
     const sel = document.getElementById('sel-producto');
     productos.forEach(p => {
       const opt = document.createElement('option');
@@ -307,8 +307,8 @@
     db.collection('ventas')
       .where('puntoId', '==', puntoId)
       .where('createdAt', '>=', start)
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(snap => renderVentasHoy(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+      
+      .onSnapshot(snap => { const sorted = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.createdAt - a.createdAt); renderVentasHoy(sorted); });
   }
 
   function renderVentasHoy(ventas) {
