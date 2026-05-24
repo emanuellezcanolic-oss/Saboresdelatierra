@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sabores de la Tierra – Punto de Venta</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #2d6a4f;
+      --green-mid: #40916c;
+      --green-light: #74c69d;
+      --green-pale: #d8f3dc;
+      --bg: #f0fdf4;
+      --white: #ffffff;
+      --text: #1b4332;
+      --muted: #6c757d;
+      --border: #b7e4c7;
+      --danger: #e63946;
+      --warning: #f4a261;
+      --shadow: 0 2px 12px rgba(45,106,79,0.12);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* HEADER */
+    header { background: var(--green); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    header .logo { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.3px; }
+    header .punto-name { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+    header .date-badge { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; }
+
+    /* LOADING / ERROR */
+    #loading, #error-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; text-align: center; padding: 24px; }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #error-screen { color: var(--danger); }
+    #error-screen .error-icon { font-size: 3rem; }
+
+    /* MAIN CONTENT */
+    main { max-width: 500px; margin: 0 auto; padding: 16px; }
+
+    /* STOCK SECTION */
+    .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 20px 0 10px; }
+    .stock-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stock-card { background: var(--white); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+    .stock-card .prod-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .stock-card .prod-price { font-size: 0.75rem; color: var(--muted); }
+    .stock-card .prod-qty { font-size: 1.6rem; font-weight: 800; color: var(--green); line-height: 1; margin-top: 6px; }
+    .stock-card .prod-qty.low { color: var(--warning); }
+    .stock-card .prod-qty.empty { color: var(--danger); }
+    .stock-card .prod-unit { font-size: 0.7rem; color: var(--muted); }
+
+    /* VENTA BUTTON */
+    .btn-venta { display: block; width: 100%; background: var(--green); color: white; border: none; border-radius: 14px; padding: 18px; font-size: 1.1rem; font-weight: 700; cursor: pointer; margin: 20px 0 0; box-shadow: var(--shadow); transition: background 0.2s, transform 0.1s; letter-spacing: 0.3px; }
+    .btn-venta:hover { background: var(--green-mid); }
+    .btn-venta:active { transform: scale(0.98); }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; width: 100%; max-width: 500px; margin: 0 auto; border-radius: 24px 24px 0 0; padding: 24px 20px 32px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.25s ease; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+    .modal h2 { font-size: 1.2rem; color: var(--text); margin-bottom: 20px; }
+
+    /* FORM */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input[type="text"], input[type="number"], textarea {
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 0.95rem; color: var(--text); background: white; appearance: none; outline: none;
+      transition: border-color 0.2s;
+    }
+    select:focus, input:focus { border-color: var(--green); }
+    .metodo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .metodo-btn { padding: 10px 6px; border: 1.5px solid var(--border); border-radius: 10px; background: white; cursor: pointer; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-align: center; transition: all 0.15s; line-height: 1.3; }
+    .metodo-btn.selected { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+    .cliente-field { display: none; }
+    .cliente-field.visible { display: block; }
+    .btn-submit { width: 100%; background: var(--green); color: white; border: none; border-radius: 12px; padding: 16px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+    .btn-submit:hover { background: var(--green-mid); }
+    .btn-submit:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+    .btn-cancel { width: 100%; background: transparent; color: var(--muted); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; font-size: 0.9rem; cursor: pointer; margin-top: 8px; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text); color: white; padding: 12px 24px; border-radius: 30px; font-size: 0.9rem; font-weight: 500; z-index: 999; transition: transform 0.3s; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: var(--green); }
+    .toast.error { background: var(--danger); }
+
+    /* VENTAS DEL DÍA */
+    .ventas-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 30px; }
+    .venta-item { background: white; border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); border-left: 4px solid var(--green-light); display: flex; justify-content: space-between; align-items: center; }
+    .venta-item.transferencia { border-left-color: var(--warning); }
+    .venta-left .prod { font-weight: 600; font-size: 0.9rem; }
+    .venta-left .cliente-tag { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .venta-left .metodo-tag { font-size: 0.7rem; display: inline-block; padding: 2px 7px; border-radius: 10px; margin-top: 4px; background: var(--green-pale); color: var(--green); font-weight: 600; }
+    .venta-left .metodo-tag.move { background: #fff3cd; color: #856404; }
+    .venta-left .metodo-tag.efectivo { background: #d1fae5; color: #065f46; }
+    .venta-right { text-align: right; }
+    .venta-right .precio { font-weight: 700; font-size: 1rem; color: var(--green); }
+    .venta-right .hora { font-size: 0.7rem; color: var(--muted); }
+    .total-bar { background: var(--green); color: white; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .total-bar .label { font-size: 0.85rem; opacity: 0.85; }
+    .total-bar .amount { font-size: 1.3rem; font-weight: 800; }
+    .empty-state { text-align: center; padding: 30px; color: var(--muted); font-size: 0.9rem; }
+    .empty-state .icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">🌿 Sabores de la Tierra</div>
+    <div class="punto-name" id="header-punto">Cargando...</div>
+  </div>
+  <div class="date-badge" id="header-date"></div>
+</header>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Cargando punto de venta...</p>
+</div>
+
+<div id="error-screen" style="display:none">
+  <span class="error-icon">⚠️</span>
+  <h2>Enlace inválido</h2>
+  <p>Este link no corresponde a ningún punto de entrega activo.<br>Pedile a Emanuel un link nuevo.</p>
+</div>
+
+<main id="app" style="display:none">
+  <p class="section-title">📦 Stock disponible</p>
+  <div class="stock-grid" id="stock-grid"></div>
+
+  <button class="btn-venta" onclick="openModal()">+ Registrar Venta</button>
+
+  <p class="section-title" style="margin-top:28px">🧾 Ventas de hoy</p>
+  <div class="total-bar">
+    <span class="label">Total del día</span>
+    <span class="amount" id="total-dia">$0</span>
+  </div>
+  <div class="ventas-list" id="ventas-list">
+    <div class="empty-state"><span class="icon">🥗</span>Aún no hay ventas hoy</div>
+  </div>
+</main>
+
+<!-- MODAL NUEVA VENTA -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Registrar Venta</h2>
+    <form id="form-venta" onsubmit="submitVenta(event)">
+      <div class="form-group">
+        <label>Producto</label>
+        <select id="sel-producto" required onchange="updatePrecio()">
+          <option value="">Seleccioná un producto...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cantidad</label>
+        <input type="number" id="inp-cantidad" min="1" max="50" value="1" required>
+      </div>
+      <div class="form-group">
+        <label>Método de Pago</label>
+        <div class="metodo-grid">
+          <button type="button" class="metodo-btn" data-metodo="Transferencias Sabores" onclick="selectMetodo(this)">Transf.<br>Sabores</button>
+          <button type="button" class="metodo-btn" data-metodo="Efectivo" onclick="selectMetodo(this)">💵<br>Efectivo</button>
+          <button type="button" class="metodo-btn" data-metodo="Transferencia MOVE" onclick="selectMetodo(this)">Transf.<br>MOVE</button>
+        </div>
+        <input type="hidden" id="inp-metodo" required>
+      </div>
+      <div class="form-group cliente-field" id="cliente-field">
+        <label>Nombre del cliente <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="inp-cliente" placeholder="Ej: Juan Pérez" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Observaciones (opcional)</label>
+        <input type="text" id="inp-obs" placeholder="Ej: lo retira mañana...">
+      </div>
+      <p style="font-size:0.8rem; color:var(--muted); margin-bottom:16px; text-align:center;">
+        Total: <strong id="preview-total" style="color:var(--green); font-size:1rem;">$0</strong>
+      </p>
+      <button type="submit" class="btn-submit" id="btn-submit">✓ Confirmar Venta</button>
+      <button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="firebase-config.js"></script>
+<script>
+  let puntoId = null;
+  let puntoData = null;
+  let productos = [];
+  let stockData = {};
+  let metodoPagoSelected = null;
+
+  function getQueryParam(key) {
+    return new URLSearchParams(window.location.search).get(key);
+  }
+
+  function formatPeso(n) {
+    return '$' + Number(n).toLocaleString('es-AR');
+  }
+
+  function formatHora(ts) {
+    if (!ts) return '';
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function todayString() {
+    return new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  function startOfToday() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  async function init() {
+    document.getElementById('header-date').textContent = todayString();
+
+    const token = getQueryParam('id');
+    if (!token) { showError(); return; }
+
+    try {
+      const snap = await db.collection('puntos').where('token', '==', token).where('activo', '==', true).get();
+      if (snap.empty) { showError(); return; }
+
+      const doc = snap.docs[0];
+      puntoId = doc.id;
+      puntoData = doc.data();
+
+      document.getElementById('header-punto').textContent = '📍 ' + puntoData.nombre;
+      document.title = puntoData.nombre + ' – Sabores de la Tierra';
+
+      await loadProductos();
+      await loadStock();
+      listenVentasHoy();
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+    } catch (e) {
+      console.error(e);
+      showError('Error al conectar con la base de datos.');
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-screen').style.display = 'flex';
+    if (msg) document.querySelector('#error-screen p').textContent = msg;
+  }
+
+  async function loadProductos() {
+    const snap = await db.collection('productos').where('activo', '==', true).orderBy('nombre').get();
+    productos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const sel = document.getElementById('sel-producto');
+    productos.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nombre + ' – ' + formatPeso(p.precio);
+      opt.dataset.precio = p.precio;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadStock() {
+    const snap = await db.collection('stock').doc(puntoId).collection('items').get();
+    snap.forEach(d => { stockData[d.id] = d.data().cantidad || 0; });
+    renderStock();
+  }
+
+  function renderStock() {
+    const grid = document.getElementById('stock-grid');
+    grid.innerHTML = '';
+    if (productos.length === 0) {
+      grid.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">Sin productos configurados.</p>';
+      return;
+    }
+    productos.forEach(p => {
+      const qty = stockData[p.id] || 0;
+      const qtyClass = qty === 0 ? 'empty' : qty <= 3 ? 'low' : '';
+      grid.innerHTML += `
+        <div class="stock-card">
+          <div class="prod-name">${p.nombre}</div>
+          <div class="prod-price">${formatPeso(p.precio)}</div>
+          <div class="prod-qty ${qtyClass}">${qty}</div>
+          <div class="prod-unit">unidades</div>
+        </div>`;
+    });
+  }
+
+  function listenVentasHoy() {
+    const start = firebase.firestore.Timestamp.fromDate(startOfToday());
+    db.collection('ventas')
+      .where('puntoId', '==', puntoId)
+      .where('createdAt', '>=', start)
+      .orderBy('createdAt', 'desc')
+      .onSnapshot(snap => renderVentasHoy(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  }
+
+  function renderVentasHoy(ventas) {
+    const list = document.getElementById('ventas-list');
+    if (ventas.length === 0) {
+      list.innerHTML = '<div class="empty-state"><span class="icon">🥗</span>Aún no hay ventas hoy</div>';
+      document.getElementById('total-dia').textContent = '$0';
+      return;
+    }
+    const total = ventas.reduce((s, v) => s + (v.precio * v.cantidad), 0);
+    document.getElementById('total-dia').textContent = formatPeso(total);
+    list.innerHTML = ventas.map(v => {
+      const esTransf = v.metodoPago !== 'Efectivo';
+      const tagClass = v.metodoPago === 'Transferencia MOVE' ? 'move' : v.metodoPago === 'Efectivo' ? 'efectivo' : '';
+      return `<div class="venta-item ${esTransf ? 'transferencia' : ''}">
+        <div class="venta-left">
+          <div class="prod">${v.productoNombre}${v.cantidad > 1 ? ' x' + v.cantidad : ''}</div>
+          ${v.cliente ? `<div class="cliente-tag">👤 ${v.cliente}</div>` : ''}
+          <span class="metodo-tag ${tagClass}">${v.metodoPago}</span>
+        </div>
+        <div class="venta-right">
+          <div class="precio">${formatPeso(v.precio * v.cantidad)}</div>
+          <div class="hora">${formatHora(v.createdAt)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+    document.getElementById('form-venta').reset();
+    metodoPagoSelected = null;
+    document.querySelectorAll('.metodo-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('cliente-field').classList.remove('visible');
+    document.getElementById('inp-metodo').value = '';
+    document.getElementById('preview-total').textContent = '$0';
+    document.getElementById('inp-cantidad').value = 1;
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  function selectMetodo(btn) {
+    document.querySelectorAll('.metodo-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    metodoPagoSelected = btn.dataset.metodo;
+    document.getElementById('inp-metodo').value = metodoPagoSelected;
+    const clienteField = document.getElementById('cliente-field');
+    if (metodoPagoSelected !== 'Efectivo') {
+      clienteField.classList.add('visible');
+      document.getElementById('inp-cliente').required = true;
+    } else {
+      clienteField.classList.remove('visible');
+      document.getElementById('inp-cliente').required = false;
+      document.getElementById('inp-cliente').value = '';
+    }
+    updatePrecio();
+  }
+
+  function updatePrecio() {
+    const sel = document.getElementById('sel-producto');
+    const qty = parseInt(document.getElementById('inp-cantidad').value) || 1;
+    const precio = sel.options[sel.selectedIndex]?.dataset?.precio || 0;
+    document.getElementById('preview-total').textContent = formatPeso(precio * qty);
+  }
+
+  document.getElementById('inp-cantidad').addEventListener('input', updatePrecio);
+
+  async function submitVenta(e) {
+    e.preventDefault();
+    const sel = document.getElementById('sel-producto');
+    const productoId = sel.value;
+    const productoNombre = sel.options[sel.selectedIndex].text.split(' – ')[0];
+    const precio = parseInt(sel.options[sel.selectedIndex].dataset.precio);
+    const cantidad = parseInt(document.getElementById('inp-cantidad').value);
+    const metodo = document.getElementById('inp-metodo').value;
+    const cliente = document.getElementById('inp-cliente').value.trim();
+    const obs = document.getElementById('inp-obs').value.trim();
+
+    if (!productoId || !metodo || cantidad < 1) {
+      showToast('Completá todos los campos requeridos', 'error');
+      return;
+    }
+    if (metodo !== 'Efectivo' && !cliente) {
+      showToast('Ingresá el nombre del cliente para transferencias', 'error');
+      return;
+    }
+
+    const stockActual = stockData[productoId] || 0;
+    if (stockActual < cantidad) {
+      showToast(`Stock insuficiente. Disponible: ${stockActual}`, 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    try {
+      const batch = db.batch();
+
+      const ventaRef = db.collection('ventas').doc();
+      batch.set(ventaRef, {
+        fecha: new Date().toLocaleDateString('es-AR'),
+        productoId, productoNombre, precio, cantidad,
+        metodoPago: metodo, cliente, observacion: obs,
+        puntoId, puntoNombre: puntoData.nombre,
+        estado: 'pendiente',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      const stockRef = db.collection('stock').doc(puntoId).collection('items').doc(productoId);
+      batch.update(stockRef, { cantidad: firebase.firestore.FieldValue.increment(-cantidad) });
+
+      await batch.commit();
+
+      stockData[productoId] = stockActual - cantidad;
+      renderStock();
+      closeModal();
+      showToast('✓ Venta registrada', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Error al guardar. Intentá de nuevo.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✓ Confirmar Venta';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
