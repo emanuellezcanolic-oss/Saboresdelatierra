@@ -378,7 +378,7 @@
   }
 
   async function loadPuntosBase() {
-    const snap = await db.collection('puntos').where('activo', '==', true).orderBy('nombre').get();
+    const snap = await db.collection('puntos').where('activo', '==', true).get();
     allPuntos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     ['fil-punto', 'stock-punto-sel'].forEach(id => {
       const sel = document.getElementById(id);
@@ -391,7 +391,7 @@
   }
 
   async function loadProductosBase() {
-    const snap = await db.collection('productos').where('activo', '==', true).orderBy('nombre').get();
+    const snap = await db.collection('productos').where('activo', '==', true).get();
     allProductos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 
@@ -566,7 +566,7 @@
 
   // ── PUNTOS ────────────────────────────────────────
   async function loadPuntos() {
-    const snap = await db.collection('puntos').where('activo', '==', true).orderBy('nombre').get();
+    const snap = await db.collection('puntos').where('activo', '==', true).get();
     allPuntos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const container = document.getElementById('puntos-list');
     const base = window.location.origin + window.location.pathname.replace('admin.html', 'vendedor.html');
