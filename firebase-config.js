@@ -8,12 +8,13 @@
 // ============================================================
 
 const firebaseConfig = {
-  apiKey: "TU_API_KEY_AQUI",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO_ID",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyD6aLgJQQmL4id0zhwdCT_NFQ70Azd9cLY",
+  authDomain: "sabores-de-la-tierra-9c247.firebaseapp.com",
+  projectId: "sabores-de-la-tierra-9c247",
+  storageBucket: "sabores-de-la-tierra-9c247.firebasestorage.app",
+  messagingSenderId: "1063794546096",
+  appId: "1:1063794546096:web:e204c81c9b0aca2f20f275",
+  measurementId: "G-WGJ04REFD6"
 };
 
 // Contraseña del panel admin (podés cambiarla)
